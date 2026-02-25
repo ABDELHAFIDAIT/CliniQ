@@ -99,3 +99,6 @@ class IngestService:
         logger.info(f"Ingested {total_points} chunks from '{filename}'")
         
         return total_points
+    
+    
+ingest_service = IngestService()
