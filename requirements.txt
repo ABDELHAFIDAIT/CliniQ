@@ -30,3 +30,5 @@ deepeval
 pytest
 requests
 py-cpuinfo
+pymupdf4llm
+pdfplumber
