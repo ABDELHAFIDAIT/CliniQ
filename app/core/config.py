@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     
     LLM_MODEL : str
     EMBEDDING_MODEL : str
+    RERANKER_MODEL : str
     GEMINI_API_KEY : str
     
     QDRANT_URL : str

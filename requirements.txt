@@ -32,3 +32,5 @@ requests
 py-cpuinfo
 pymupdf4llm
 pdfplumber
+google-generativeai
+google-genai
