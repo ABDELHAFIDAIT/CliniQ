@@ -34,3 +34,5 @@ pymupdf4llm
 pdfplumber
 google-generativeai
 google-genai
+langchain_ollama
+nest-asyncio

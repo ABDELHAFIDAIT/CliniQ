@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL : str
     RERANKER_MODEL : str
     GEMINI_API_KEY : str
+    OLLAMA_BASE_URL : str
+    EVAL_LLM_MODEL : str
     
     QDRANT_URL : str
     QDRANT_COLLECTION_NAME : str

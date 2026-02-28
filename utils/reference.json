@@ -1,0 +1,82 @@
+[
+  {
+    "input": "Quelle est la cause principale de la diarrhée ?",
+    "expected_output": "La diarrhée est la plupart du temps la conséquence d'une infection virale du tube digestif. On parle de gastro-entérite pouvant donc donner une diarrhée et des vomissements."
+  },
+  {
+    "input": "Quels sont les signes de gravité à rechercher chez une personne qui tousse ?",
+    "expected_output": "Chercher des signes de gravité : Cyanose, polypnée, apnée, sueurs, difficultés à s'alimenter, à parler, faible réactivité, fatigue, âge < 6mois, conditions socio-économiques défavorables."
+  },
+  {
+    "input": "Comment définit-on une détresse respiratoire importante chez l'enfant via le score de Silverman ?",
+    "expected_output": "Evaluer le score de Silverman : la détresse respiratoire est importante si le score >3."
+  },
+  {
+    "input": "Que signifie un balancement thoraco-abdominal chez un enfant présentant des difficultés respiratoires ?",
+    "expected_output": "Cela correspond à un épuisement du diaphragme qui est le muscle respiratoire principal. La situation est alors grave."
+  },
+  {
+    "input": "Quelle est la définition clinique de la fièvre chez l'enfant ?",
+    "expected_output": "La fièvre est définie par une température rectale supérieure ou égale à 38°C[cite: 181]."
+  },
+  {
+    "input": "Quel est le traitement médicamenteux de première intention pour la fièvre en Polynésie française ?",
+    "expected_output": "Le paracétamol est l'antipyrétique de première intention recommandé, à une dose quotidienne de 60 mg/kg/j répartie en 4 ou 6 prises[cite: 202, 203]."
+  },
+  {
+    "input": "Quelles sont les mesures de sécurité prioritaires pour un patient adulte en état d'agitation ?",
+    "expected_output": "La base de la prise en charge est la prudence, la protection du personnel et de la communauté, ainsi que l'installation du patient dans un espace calme[cite: 227, 228]."
+  },
+  {
+    "input": "Quelle est la procédure pour retirer les filaments de méduse sur la peau ?",
+    "expected_output": "Il faut retirer les filaments avec une pince ou une main doublement gantée, appliquer de la mousse à raser, puis racler délicatement avec un abaisse-langue[cite: 294, 295]."
+  },
+  {
+    "input": "Pourquoi l'utilisation de l'eau douce est-elle proscrite sur une piqûre de méduse ?",
+    "expected_output": "L'eau douce fait éclater les nématocystes (cellules urticantes) encore présents sur la peau[cite: 298]."
+  },
+  {
+    "input": "Quelle précaution systématique doit être prise pour une femme en âge de procréer souffrant de douleurs abdominales ?",
+    "expected_output": "Il faut systématiquement réaliser un test de grossesse pour écarter le risque de grossesse extra-utérine (GEU), quel que soit le moyen de contraception utilisé[cite: 380, 381]."
+  },
+  {
+    "input": "Comment différencier une douleur articulaire mécanique d'une douleur inflammatoire ?",
+    "expected_output": "La douleur mécanique survient à l'activité et est soulagée par le repos, tandis que la douleur inflammatoire survient au repos (souvent la nuit) et s'améliore à l'activité[cite: 447]."
+  },
+  {
+    "input": "Quels sont les critères du syndrome de réponse inflammatoire systémique (SRIS) ?",
+    "expected_output": "Le SRIS se manifeste par au moins deux des signes suivants : température > 38,3°C ou < 36°C, FC > 90/min, FR > 20/min ou leucocytose > 12 ou < 4 G/L[cite: 504, 505, 506, 507, 508]."
+  },
+  {
+    "input": "Comment traiter le linge d'un patient atteint de la gale s'il ne supporte pas le lavage à 60°C ?",
+    "expected_output": "Le linge doit être recueilli dans un sac plastique fermé hermétiquement pendant une semaine avant un lavage ordinaire[cite: 585]."
+  },
+  {
+    "input": "Quelle action visuelle est recommandée pour suivre l'évolution d'une 'grosse jambe rouge' ?",
+    "expected_output": "Il est recommandé de tracer au feutre le contour de l'érythème dès la première visite pour évaluer sa progression à la 24ème heure[cite: 606]."
+  },
+  {
+    "input": "Pourquoi est-il interdit de laisser un patient utiliser un collyre anesthésique à domicile ?",
+    "expected_output": "Leur utilisation répétée peut provoquer des lésions irréversibles de la cornée[cite: 639, 640]."
+  },
+  {
+    "input": "Quelle est la conduite à tenir immédiate en cas de projection chimique dans l'œil ?",
+    "expected_output": "Il faut procéder à des lavages abondants de l'œil et du visage avec de l'eau pendant 20 minutes[cite: 672]."
+  },
+  {
+    "input": "Quels sont les quatre médicaments essentiels pour le traitement courant des otites selon le guide ?",
+    "expected_output": "Le paracétamol, l'amoxicilline, les quinolones en gouttes auriculaires (Ofloxacine) et l'association antibiotique/corticoïde en gouttes (Polydexa)[cite: 725]."
+  },
+  {
+    "input": "Quel est le traitement immédiat pour une piqûre de poisson pierre (Nohu) ?",
+    "expected_output": "Immerger la partie concernée dans de l'eau chaude à 45°C pendant au moins une heure pour neutraliser le venin thermolabile[cite: 749]."
+  },
+  {
+    "input": "Peut-on suturer une plaie sans exploration préalable ?",
+    "expected_output": "Non, il ne faut jamais suturer une plaie sans avoir effectué une exploration pour déterminer le bilan lésionnel et le risque infectieux[cite: 766]."
+  },
+  {
+    "input": "Quelle est la différence de prise en charge entre l'expulsion d'une dent de lait et d'une dent définitive ?",
+    "expected_output": "Une dent de lait expulsée ne doit jamais être remise en place pour ne pas léser le germe de la dent définitive. À l'inverse, une dent définitive saine doit être réimplantée en urgence, idéalement dans les 4 heures[cite: 1020, 1021, 1089, 1090]."
+  }
+]

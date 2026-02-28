@@ -1,11 +1,18 @@
 import logging
 import re
 from typing import List, Dict, Any
+from deepeval.metrics import AnswerRelevancyMetric, ContextualPrecisionMetric, ContextualRecallMetric, FaithfulnessMetric
+from deepeval.test_case import LLMTestCase
 import google.generativeai as genai
+import mlflow
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchAny
 from app.core.config import settings
+from langchain_ollama import ChatOllama
+from app.services.eval_service import eval_service
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +20,7 @@ logger = logging.getLogger(__name__)
 class RAGService:
     def __init__(self):
         logger.info(f"Initialisation RAG avec {settings.EMBEDDING_MODEL}")
+        
         self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
         self.reranker = CrossEncoder(settings.RERANKER_MODEL)
         self.qdrant = QdrantClient(url=settings.QDRANT_URL)
@@ -21,6 +29,88 @@ class RAGService:
         self.llm = genai.GenerativeModel(model_name=settings.LLM_MODEL)
         
         self.collection = settings.QDRANT_COLLECTION_NAME
+    
+        self.reference_llm = ChatOllama(
+            model=settings.EVAL_LLM_MODEL,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=0
+        )
+    
+    
+    
+    async def generate_reference_answer(self, question: str, context: str) -> str:
+        try:
+            ref_prompt = f"""
+                En tant qu'expert médical, rédige une réponse EXHAUSTIVE et EXACTE à la question suivante en utilisant le contexte fourni. 
+                Ta réponse servira de référence de vérité terrain.
+                
+                CONTEXTE : {context}
+                
+                QUESTION : {question}
+                
+                RÉPONSE DE RÉFÉRENCE :
+            """
+            
+            res = await self.reference_llm.ainvoke(ref_prompt)
+            content = res.content.strip()
+            return str(content)
+        
+        except Exception as e:
+            logger.error(f"Erreur Ollama Reference : {e}")
+            return ""
+    
+    
+    
+    def format_docs(self, chunks: List[Dict[str, Any]]) :
+        formatted = []
+        for c in chunks:
+            m = c.get("metadata") or {}
+            header = f"[DOC: {m.get('document')} | PAGE: {m.get('page')} | SECTION: {m.get('section')}]"
+            content = c.get("content", "")
+            formatted.append(f"{header}\n{content}")
+        return "\n\n".join(formatted)
+    
+    
+    
+    async def evaluate_performance(self, question: str, response: str, retrieved_docs: List[Any]):
+        try: 
+            context_text = self.format_docs(retrieved_docs)
+            context_list = [c["content"] for c in retrieved_docs]
+
+            expected_output = await self.generate_reference_answer(question, context_text)
+            
+            if not expected_output:
+                logger.warning("Évaluation annulée : expected_output vide.")
+                return
+            
+            
+            test_case = LLMTestCase(
+                input=question,
+                actual_output=response,
+                expected_output=expected_output,
+                retrieval_context=context_list
+            )
+            
+            metrics = [
+                AnswerRelevancyMetric(threshold=0.7, model=eval_service),
+                FaithfulnessMetric(threshold=0.7, model=eval_service),
+                ContextualPrecisionMetric(threshold=0.7, model=eval_service),
+                ContextualRecallMetric(threshold=0.7, model=eval_service)
+            ]
+
+            results = {}
+            for metric in metrics:
+                await metric.a_measure(test_case)
+                name = metric.__class__.__name__.replace('Metric', '').lower()
+                results[name] = float(metric.score)
+            
+            logger.info(f"Métriques DeepEval enregistrées avec succès !, {results}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'évaluation DeepEval : {e}")
+    
     
     
     def expand_query(self, query: str) -> str:
@@ -37,6 +127,7 @@ class RAGService:
         except Exception as e:
             logger.error(f"Error during query expansion: {e}")
             return [query]
+    
     
     
     def hybrid_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
@@ -71,6 +162,7 @@ class RAGService:
             for r in results
         ]
     
+
 
     async def ask(self, question: str) -> Dict[str, Any] :
         queries = self.expand_query(question)
@@ -115,7 +207,8 @@ class RAGService:
         if not context:
             return {
                 "answer": "Désolé, je n'ai trouvé aucun protocole médical correspondant à votre recherche dans le guide.",
-                "sources": []
+                "sources": [],
+                "evaluation": None
             }
         
         system_prompt = f"""
@@ -136,9 +229,11 @@ class RAGService:
         
         response = self.llm.generate_content(system_prompt)
         
+        metrics = await self.evaluate_performance(question, response.text, sorted_chunks)
+        
         return {
             "answer": response.text,
-            "sources": sorted_chunks
+            "metrics": metrics
         }
 
 
