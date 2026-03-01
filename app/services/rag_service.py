@@ -1,4 +1,5 @@
 import re
+import time
 import logging
 import mlflow
 import mlflow.langchain
@@ -11,7 +12,9 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchAny
 from app.core.config import settings
 from langchain_ollama import ChatOllama
+from app.core.metrics import CLINICAL_QUERY_COUNT
 from app.services.eval_service import eval_service
+from app.core.metrics import CLINICAL_QUERY_COUNT, RAG_LATENCY
 
 
 
@@ -185,6 +188,9 @@ class RAGService:
 
 
     async def ask(self, question: str) -> Dict[str, Any] :
+        start = time.time()
+        CLINICAL_QUERY_COUNT.inc()
+        
         with mlflow.start_run(run_name="RAG_CLINIQ") :
             
             mlflow.set_tags({
@@ -281,6 +287,8 @@ class RAGService:
             mlflow.log_text(str(context), "artifacts/context_used.txt")
             
             metrics = await self.evaluate_performance(question, response.text, sorted_chunks)
+            
+            RAG_LATENCY.observe(time.time() - start)
             
             return {
                 "answer": response.text,
