@@ -14,7 +14,7 @@ from app.core.config import settings
 from langchain_ollama import ChatOllama
 from app.core.metrics import CLINICAL_QUERY_COUNT
 from app.services.eval_service import eval_service
-from app.core.metrics import CLINICAL_QUERY_COUNT, RAG_LATENCY
+from app.core.metrics import RAG_LATENCY, RAG_RETRIEVED_DOCS, RAG_NO_CONTEXT, EVAL_SCORE, EVAL_FAILURES, CLINICAL_QUERY_COUNT
 
 
 
@@ -26,7 +26,7 @@ class RAGService:
         try:
             mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
             mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
-            mlflow.langchain.autolog()
+            # mlflow.langchain.autolog()
         except Exception as e:
             logger.warning(f"MLflow unavailable, tracking disabled: {e}")
         
@@ -48,7 +48,7 @@ class RAGService:
         )
     
     
-    
+    @mlflow.trace
     async def generate_reference_answer(self, question: str, context: str) -> str:
         try:
             ref_prompt = f"""
@@ -82,7 +82,7 @@ class RAGService:
         return "\n\n".join(formatted)
     
     
-    
+    @mlflow.trace
     async def evaluate_performance(self, question: str, response: str, retrieved_docs: List[Any]):
         try:
             context_text = self.format_docs(retrieved_docs)
@@ -115,6 +115,10 @@ class RAGService:
                     await metric.a_measure(test_case)
                     name = metric.__class__.__name__.replace('Metric', '').lower()
                     results[name] = float(metric.score)
+                    
+                    EVAL_SCORE.labels(metric=name).observe(results[name])
+                    if results[name] < 0.7:
+                        EVAL_FAILURES.labels(metric=name).inc()
                 except Exception as metric_err:
                     name = metric.__class__.__name__.replace('Metric', '').lower()
                     logger.warning(f"Métrique {name} échouée : {metric_err}")
@@ -135,7 +139,7 @@ class RAGService:
             logger.error(f"Erreur lors de l'évaluation DeepEval : {e}")
     
     
-    # @mlflow.trace
+    @mlflow.trace
     def expand_query(self, query: str) -> str:
         prompt = f"""
             En tant qu'expert médical, génère 3 variantes de recherche (mots-clés ou phrases courtes) en français pour la question suivante : '{query}'.
@@ -186,10 +190,10 @@ class RAGService:
         ]
     
 
-
+    @mlflow.trace
     async def ask(self, question: str) -> Dict[str, Any] :
-        start = time.time()
         CLINICAL_QUERY_COUNT.inc()
+        rag_start = time.time()
         
         with mlflow.start_run(run_name="RAG_CLINIQ") :
             
@@ -237,6 +241,8 @@ class RAGService:
             else:
                 sorted_chunks = []
             
+            RAG_RETRIEVED_DOCS.observe(len(sorted_chunks))
+            
             context_parts = []
             for c in sorted_chunks:
                 meta = c.get("metadata") or {}
@@ -258,6 +264,9 @@ class RAGService:
             context = "\n\n".join(context_parts)
             
             if not context:
+                RAG_NO_CONTEXT.inc()
+                RAG_LATENCY.observe(time.time() - rag_start)
+                
                 return {
                     "answer": "Désolé, je n'ai trouvé aucun protocole médical correspondant à votre recherche dans le guide.",
                     "sources": [],
@@ -288,7 +297,7 @@ class RAGService:
             
             metrics = await self.evaluate_performance(question, response.text, sorted_chunks)
             
-            RAG_LATENCY.observe(time.time() - start)
+            RAG_LATENCY.observe(time.time() - rag_start)
             
             return {
                 "answer": response.text,

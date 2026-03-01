@@ -1,0 +1,70 @@
+groups:
+  - name: cliniq_rag_alerts
+    rules:
+
+      # ── Latence RAG élevée ─────────────────────────────────────────────────
+      - alert: RAGHighLatency
+        expr: histogram_quantile(0.95, rate(cliniq_rag_latency_seconds_bucket[5m])) > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence RAG élevée (p95 > 30s)"
+          description: "Le pipeline RAG met plus de 30s au 95e percentile depuis 2 minutes."
+
+      - alert: RAGCriticalLatency
+        expr: histogram_quantile(0.95, rate(cliniq_rag_latency_seconds_bucket[5m])) > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Latence RAG critique (p95 > 60s)"
+          description: "Le pipeline RAG est très lent. Vérifier Ollama / Gemini."
+
+      # ── Taux d'erreurs HTTP ────────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: rate(cliniq_http_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreurs HTTP élevé"
+          description: "Plus de 0.1 erreur/s sur les 5 dernières minutes."
+
+      # ── Qualité DeepEval ───────────────────────────────────────────────────
+      - alert: LowAnswerRelevancy
+        expr: histogram_quantile(0.5, rate(cliniq_eval_score_bucket{metric="answerrelevancy"}[15m])) < 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Score AnswerRelevancy bas (médiane < 0.5)"
+          description: "Les réponses du RAG manquent de pertinence. Vérifier le contexte et le prompt."
+
+      - alert: LowFaithfulness
+        expr: histogram_quantile(0.5, rate(cliniq_eval_score_bucket{metric="faithfulness"}[15m])) < 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Score Faithfulness bas (médiane < 0.5)"
+          description: "Les réponses s'écartent du contexte source. Risque d'hallucination."
+
+      - alert: HighEvalFailureRate
+        expr: rate(cliniq_eval_failures_total[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trop de métriques DeepEval sous le seuil"
+          description: "Plus de 0.5 métrique/s sous 0.7 sur les 15 dernières minutes."
+
+      # ── Aucun contexte trouvé ──────────────────────────────────────────────
+      - alert: HighNoContextRate
+        expr: rate(cliniq_rag_no_context_total[10m]) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trop de requêtes sans contexte retrouvé"
+          description: "Qdrant ne retourne pas de résultats pour de nombreuses requêtes. Vérifier la collection."
