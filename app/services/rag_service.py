@@ -1,10 +1,11 @@
-import logging
 import re
+import logging
+import mlflow
+import mlflow.langchain
 from typing import List, Dict, Any
 from deepeval.metrics import AnswerRelevancyMetric, ContextualPrecisionMetric, ContextualRecallMetric, FaithfulnessMetric
 from deepeval.test_case import LLMTestCase
 import google.generativeai as genai
-import mlflow
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchAny
@@ -19,6 +20,13 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
+        try:
+            mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+            mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+            mlflow.langchain.autolog()
+        except Exception as e:
+            logger.warning(f"MLflow unavailable, tracking disabled: {e}")
+        
         logger.info(f"Initialisation RAG avec {settings.EMBEDDING_MODEL}")
         
         self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
@@ -73,7 +81,7 @@ class RAGService:
     
     
     async def evaluate_performance(self, question: str, response: str, retrieved_docs: List[Any]):
-        try: 
+        try:
             context_text = self.format_docs(retrieved_docs)
             context_list = [c["content"] for c in retrieved_docs]
 
@@ -100,9 +108,21 @@ class RAGService:
 
             results = {}
             for metric in metrics:
-                await metric.a_measure(test_case)
-                name = metric.__class__.__name__.replace('Metric', '').lower()
-                results[name] = float(metric.score)
+                try:
+                    await metric.a_measure(test_case)
+                    name = metric.__class__.__name__.replace('Metric', '').lower()
+                    results[name] = float(metric.score)
+                except Exception as metric_err:
+                    name = metric.__class__.__name__.replace('Metric', '').lower()
+                    logger.warning(f"Métrique {name} échouée : {metric_err}")
+                
+            mlflow.log_metrics(results)
+            
+            mlflow.log_text(expected_output, "evaluation/ollama_reference.txt")
+                
+            mlflow.log_metrics(results)
+            
+            mlflow.log_text(expected_output, "evaluation/ollama_reference.txt")
             
             logger.info(f"Métriques DeepEval enregistrées avec succès !, {results}")
             
@@ -112,7 +132,7 @@ class RAGService:
             logger.error(f"Erreur lors de l'évaluation DeepEval : {e}")
     
     
-    
+    # @mlflow.trace
     def expand_query(self, query: str) -> str:
         prompt = f"""
             En tant qu'expert médical, génère 3 variantes de recherche (mots-clés ou phrases courtes) en français pour la question suivante : '{query}'.
@@ -165,76 +185,107 @@ class RAGService:
 
 
     async def ask(self, question: str) -> Dict[str, Any] :
-        queries = self.expand_query(question)
-        
-        all_chunks = []
-        for q in queries:
-            all_chunks.extend(self.hybrid_search(q))
-        
-        unique_chunks_dict = {chunk['content']: chunk for chunk in all_chunks}
-        chunks_list = list(unique_chunks_dict.values())
-        
-        if chunks_list:
-            pairs = [[question, c["content"]] for c in chunks_list if c.get("content")]
-            if not pairs:
-                sorted_chunks = []
-            else:
-                rerank_scores = self.reranker.predict(pairs)
-                for i, chunk in enumerate(chunks_list):
-                    chunk["rerank_score"] = float(rerank_scores[i])
+        with mlflow.start_run(run_name="RAG_CLINIQ") :
+            
+            mlflow.set_tags({
+                "project": "CliniQ",
+                "architecture": "Hybrid RAG",
+                "llm_provider": "GEMINI",
+                "reranker": "CrossEncoder",
+                "evaluation": "DeepEval"
+            })
                 
-                sorted_chunks = sorted(chunks_list, key=lambda x: x["rerank_score"], reverse=True)[:settings.RETRIEVAL_TOP_K]
-        else:
-            sorted_chunks = []
-        
-        context_parts = []
-        for c in sorted_chunks:
-            meta = c.get("metadata") or {}
-            doc = meta.get("document", "Document inconnu")
-            page = meta.get("page", "?")
-            chap = meta.get("chapter", "N/A")
-            sec = meta.get("section", "N/A")
-            content = c.get("content", "")
+            mlflow.log_params({
+                "llm_model": settings.LLM_MODEL,
+                "temperature": 0,
+                "chunk_size": settings.CHUNK_SIZE,
+                "chunk_overlap": settings.CHUNK_OVERLAP,
+                "embedding_model": settings.EMBEDDING_MODEL,
+                "retrieval_k": 10,
+                "similarity": "cosine",
+                "reranker_model": settings.RERANKER_MODEL,
+                "eval_model": settings.EVAL_LLM_MODEL,
+                "eval_threshold": 0.7,
+                "qdrant_collection": settings.QDRANT_COLLECTION_NAME
+            })
             
-            context_parts.append(
-                f"--- SOURCE: {doc} (Page {page}) ---\n"
-                f"Chapitre: {chap} | Section: {sec}\n"
-                f"{content}"
-            )
+            queries = self.expand_query(question)
             
-        context = "\n\n".join(context_parts)
-        
-        if not context:
+            all_chunks = []
+            for q in queries:
+                all_chunks.extend(self.hybrid_search(q))
+            
+            unique_chunks_dict = {chunk['content']: chunk for chunk in all_chunks}
+            chunks_list = list(unique_chunks_dict.values())
+            
+            if chunks_list:
+                pairs = [[question, c["content"]] for c in chunks_list if c.get("content")]
+                if not pairs:
+                    sorted_chunks = []
+                else:
+                    rerank_scores = self.reranker.predict(pairs)
+                    for i, chunk in enumerate(chunks_list):
+                        chunk["rerank_score"] = float(rerank_scores[i])
+                    
+                    sorted_chunks = sorted(chunks_list, key=lambda x: x["rerank_score"], reverse=True)[:settings.RETRIEVAL_TOP_K]
+            else:
+                sorted_chunks = []
+            
+            context_parts = []
+            for c in sorted_chunks:
+                meta = c.get("metadata") or {}
+                doc = meta.get("document", "Document inconnu")
+                page = meta.get("page", "?")
+                chap = meta.get("chapter", "N/A")
+                sec = meta.get("section", "N/A")
+                content = c.get("content", "")
+                
+                context_parts.append(
+                    f"--- SOURCE: {doc} (Page {page}) ---\n"
+                    f"Chapitre: {chap} | Section: {sec}\n"
+                    f"{content}"
+                )
+                
+            mlflow.log_text(str(sorted_chunks), "artifacts/retrieved_docs.txt")    
+            mlflow.log_metric("retrieved_docs_count", len(sorted_chunks))    
+            
+            context = "\n\n".join(context_parts)
+            
+            if not context:
+                return {
+                    "answer": "Désolé, je n'ai trouvé aucun protocole médical correspondant à votre recherche dans le guide.",
+                    "sources": [],
+                    "evaluation": None
+                }
+            
+            system_prompt = f"""
+                Tu es CliniQ, un assistant médical expert pour la Polynésie Française.
+                Réponds à la question en te basant EXCLUSIVEMENT sur les protocoles ci-dessous.
+                
+                RÈGLES :
+                1. Cite TOUJOURS le document et la page.
+                2. Si la réponse n'est pas dans le contexte, dis que tu ne sais pas.
+                3. Sois structuré (signes de gravité, traitement, conduite à tenir).
+                
+                CONTEXTE :
+                {context}
+                
+                QUESTION :
+                {question}
+            """
+            
+            response = self.llm.generate_content(system_prompt)
+            
+            mlflow.log_text(str(question), "inputs/question.txt")
+            mlflow.log_text(str(response.text), "outputs/ai_response.txt")
+            mlflow.log_text(str(context), "artifacts/context_used.txt")
+            
+            metrics = await self.evaluate_performance(question, response.text, sorted_chunks)
+            
             return {
-                "answer": "Désolé, je n'ai trouvé aucun protocole médical correspondant à votre recherche dans le guide.",
-                "sources": [],
-                "evaluation": None
+                "answer": response.text,
+                "metrics": metrics
             }
-        
-        system_prompt = f"""
-            Tu es CliniQ, un assistant médical expert pour la Polynésie Française.
-            Réponds à la question en te basant EXCLUSIVEMENT sur les protocoles ci-dessous.
-            
-            RÈGLES :
-            1. Cite TOUJOURS le document et la page.
-            2. Si la réponse n'est pas dans le contexte, dis que tu ne sais pas.
-            3. Sois structuré (signes de gravité, traitement, conduite à tenir).
-            
-            CONTEXTE :
-            {context}
-            
-            QUESTION :
-            {question}
-        """
-        
-        response = self.llm.generate_content(system_prompt)
-        
-        metrics = await self.evaluate_performance(question, response.text, sorted_chunks)
-        
-        return {
-            "answer": response.text,
-            "metrics": metrics
-        }
 
 
 
