@@ -14,6 +14,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  
+  adminer:
+    image: adminer
+    container_name: cliniq_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -49,14 +58,38 @@ services:
     env_file: .env
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v3.8.1
+    image: ghcr.io/mlflow/mlflow #:v3.8.1
     container_name: cliniq_mlflow
     ports:
       - "5000:5000"
     environment:
       - MLFLOW_HTTP_ALLOWED_HOSTS=*
     command: mlflow server --host 0.0.0.0 --allowed-hosts "*"
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cliniq_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - backend
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cliniq_cadvisor
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8081:8080"
 
 volumes:
   postgres_data:
   qdrant_data:
+  prometheus_data:
