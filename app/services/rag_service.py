@@ -25,7 +25,6 @@ from app.core.metrics import (
     RAG_NO_CONTEXT,
     EVAL_SCORE,
     EVAL_FAILURES,
-    CLINICAL_QUERY_COUNT,
 )
 
 logger = logging.getLogger(__name__)

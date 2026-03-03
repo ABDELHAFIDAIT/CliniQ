@@ -1,8 +1,6 @@
 import io
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.core.security import get_password_hash
-from app.models.user import User
 from app.models.query import Query
 
 

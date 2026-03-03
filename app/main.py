@@ -2,15 +2,11 @@ import time
 from fastapi import FastAPI, Response, Request
 from app.core.config import settings
 from app.api.router import router
-from app.models.user import User
-from app.models.query import Query
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from app.core.metrics import (
     HTTP_REQUESTS_TOTAL,
     HTTP_REQUEST_DURATION,
     ERROR_COUNT,
-    CLINICAL_QUERY_COUNT,
-    RAG_LATENCY,
 )
 
 app = FastAPI(
