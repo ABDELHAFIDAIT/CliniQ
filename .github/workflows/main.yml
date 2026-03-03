@@ -17,18 +17,14 @@ jobs:
         steps :
             - name: Checkout Code
               uses: actions/checkout@v4
-            
             - name: Set up Python 3.11
               uses : actions/setup-python@v5
               with:
                 python-version: 3.11
-            
             - name: Install Quality Tools
               run: pip install ruff black
-
             - name: Run Black (vérification du formatage)
               run: black --check app tests
-
             - name: Run Ruff (linter rapide, remplace flake8 + isort)
               run: ruff check app tests
     
