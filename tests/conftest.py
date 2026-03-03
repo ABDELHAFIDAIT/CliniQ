@@ -1,3 +1,5 @@
+# ruff: noqa: E402
+
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
@@ -21,7 +23,6 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.query import Query
 from app.core.security import get_password_hash
-
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 
