@@ -1,21 +1,8 @@
-# ruff: noqa: E402
-
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-_module_patches = [
-    patch("sentence_transformers.SentenceTransformer", MagicMock()),
-    patch("qdrant_client.QdrantClient", MagicMock()),
-    patch("flashrank.Ranker", MagicMock()),
-    patch("mlflow.set_tracking_uri", MagicMock()),
-    patch("mlflow.set_experiment", MagicMock()),
-    patch("mlflow.start_run", MagicMock()),
-]
-for _p in _module_patches:
-    _p.start()
 
 from app.main import app
 from app.db.base import Base
@@ -23,6 +10,8 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.query import Query
 from app.core.security import get_password_hash
+from app.services.rag_service import get_rag_service
+from app.services.ingest_service import get_ingest_service
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 
@@ -83,17 +72,44 @@ def auth_headers(test_user):
 
 
 @pytest.fixture()
-def client(db_session):
-    with patch(
-        "app.services.rag_service.RAGService.__init__", return_value=None
-    ), patch("app.services.ingest_service.IngestService.__init__", return_value=None):
+def mock_rag_service(sample_rag_result):
+    mock = MagicMock()
+    mock.ask = AsyncMock(return_value=sample_rag_result)
+    return mock
 
-        app.dependency_overrides[get_db] = lambda: db_session
 
-        with TestClient(app) as c:
-            yield c
+@pytest.fixture()
+def mock_ingest_service():
+    mock = MagicMock()
 
-        app.dependency_overrides.clear()
+    mock.ingest.return_value = {
+        "status": "success",
+        "document": "guide.pdf",
+        "chunks_created": 42,
+        "breakdown": {"text": 38, "table": 4},
+    }
+
+    point = MagicMock()
+    point.id = "point_123"
+    point.payload = {"content": "PARACETAMOL 500mg sur 8h", "document": "guide.pdf"}
+
+    mock.client.scroll.return_value = ([point], None)
+    mock.collection_name = "cliniq_docs"
+
+    return mock
+
+
+@pytest.fixture()
+def client(db_session, mock_rag_service, mock_ingest_service):
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_rag_service] = lambda: mock_rag_service
+    app.dependency_overrides[get_ingest_service] = lambda: mock_ingest_service
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
 
 
 # Fixtures pour les tests de RAG et d'évaluation

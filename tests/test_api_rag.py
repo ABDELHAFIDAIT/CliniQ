@@ -1,6 +1,4 @@
 import io
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from app.models.query import Query
 
 
@@ -36,14 +34,6 @@ def test_login_success(client, test_user):
     assert data["token_type"] == "bearer"
 
 
-# Fixture pour mocker le service RAG et éviter les appels externes lors des tests de l'endpoint /api/chat/ask
-@pytest.fixture(autouse=True)
-def mock_rag(sample_rag_result):
-    with patch("app.api.endpoints.chat.rag_service") as mock:
-        mock.ask = AsyncMock(return_value=sample_rag_result)
-        yield mock
-
-
 # Test de l'endpoint /api/chat/ask
 def test_ask_success(client, auth_headers):
     response = client.post(
@@ -72,19 +62,6 @@ def test_ask_saves_query_in_db(client, auth_headers, db_session, test_user):
     assert after == before + 1
 
 
-# Fixture pour mocker le service d'ingestion et éviter les appels externes lors des tests de l'endpoint /api/document/ingest
-@pytest.fixture()  # autouse=True
-def mock_ingest():
-    with patch("app.api.endpoints.document.ingest_service") as mock:
-        mock.ingest.return_value = {
-            "status": "success",
-            "document": "guide.pdf",
-            "chunks_created": 42,
-            "breakdown": {"text": 38, "table": 4},
-        }
-        yield mock
-
-
 # Helper pour créer un fichier PDF factice à envoyer lors du test de l'endpoint d'ingestion
 def pdf_file(filename="guide.pdf"):
     return {
@@ -97,7 +74,7 @@ def pdf_file(filename="guide.pdf"):
 
 
 # Test de l'endpoint /api/document/ingest
-def test_ingest_success(client, auth_headers, mock_ingest):
+def test_ingest_success(client, auth_headers):
     response = client.post(
         "/api/documents/ingest", files=pdf_file(), headers=auth_headers
     )
@@ -109,32 +86,7 @@ def test_ingest_success(client, auth_headers, mock_ingest):
     assert data["chunks_created"] == 42
 
 
-@pytest.fixture()  # autouse=True
-def mock_qdrant_scroll():
-    point = MagicMock()
-    point.id = "point_123"
-    point.payload = {
-        "content": "PARACETAMOL 500mg sur 8h",
-        "document": "guide.pdf",
-        "page_start": 12,
-        "page_end": 12,
-        "chapter": "PÉDIATRIE",
-        "section": "Diarrhée",
-        "subsection": "",
-        "content_type": "text",
-        "patient_population": "pediatrie",
-        "clinical_tags": ["diarrhée", "paracetamol"],
-        "version": "1",
-        "validated_by": "Hafid",
-        "date": "2026",
-    }
-    with patch("app.api.endpoints.document.ingest_service") as mock:
-        mock.client.scroll.return_value = ([point], None)
-        mock.collection_name = "cliniq_docs"
-        yield mock
-
-
-def test_get_chunks_success(client, auth_headers, mock_qdrant_scroll):
+def test_get_chunks_success(client, auth_headers):
     response = client.get("/api/documents/chunks", headers=auth_headers)
 
     assert response.status_code == 200

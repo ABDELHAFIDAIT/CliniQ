@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.schemas.chat import ChatRequest
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.services.rag_service import rag_service
+
+# from app.services.rag_service import rag_service
+from app.services.rag_service import RAGService, get_rag_service
 from fastapi import APIRouter, Depends, HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ async def ask_clinical_question(
     request: ChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    rag_service: RAGService = Depends(get_rag_service),
 ):
     if not request.question.strip():
         raise HTTPException(

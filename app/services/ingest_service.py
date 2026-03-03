@@ -333,4 +333,5 @@ class IngestService:
         return [kw for kw in CLINICAL_KEYWORDS if kw in tl]
 
 
-ingest_service = IngestService()
+def get_ingest_service() -> IngestService:
+    return IngestService()

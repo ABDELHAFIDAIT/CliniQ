@@ -6,7 +6,7 @@ import shutil
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from app.api.deps import get_current_user
-from app.services.ingest_service import ingest_service
+from app.services.ingest_service import IngestService, get_ingest_service
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,9 @@ router = APIRouter()
 
 @router.post("/ingest", status_code=status.HTTP_201_CREATED)
 async def upload_and_ingest_document(
-    file: UploadFile = File(...), current_user: User = Depends(get_current_user)
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    ingest_service: IngestService = Depends(get_ingest_service),
 ):
     if (
         not file.filename.lower().endswith(".pdf")
@@ -68,6 +70,7 @@ async def get_ingested_chunks(
     limit: int = 10,
     offset: Optional[str] = None,
     current_user: User = Depends(get_current_user),
+    ingest_service: IngestService = Depends(get_ingest_service),
 ):
     try:
         result, next_offset = ingest_service.client.scroll(

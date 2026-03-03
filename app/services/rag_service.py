@@ -317,4 +317,8 @@ class RAGService:
             return {"answer": response.text, "metrics": metrics}
 
 
-rag_service = RAGService()
+# rag_service = RAGService()
+
+
+def get_rag_service() -> RAGService:
+    return RAGService()
