@@ -57,14 +57,15 @@ async def ask_clinical_question(
         )
 
 
-
 @router.get("/history", response_model=List[QueryHistory])
 async def get_my_history(
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    history = db.query(Query).filter(
-        Query.user_id == current_user.id
-    ).order_by(Query.created_at.desc()).all()
-    
+    history = (
+        db.query(Query)
+        .filter(Query.user_id == current_user.id)
+        .order_by(Query.created_at.desc())
+        .all()
+    )
+
     return history
