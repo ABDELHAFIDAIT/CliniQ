@@ -3,3 +3,5 @@ __pycache__/
 data/
 temp/
 .deepeval/
+test.db
+.pytest_cache/
