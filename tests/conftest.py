@@ -1,8 +1,19 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+_module_patches = [
+    patch("sentence_transformers.SentenceTransformer", MagicMock()),
+    patch("qdrant_client.QdrantClient", MagicMock()),
+    patch("flashrank.Ranker", MagicMock()),
+    patch("mlflow.set_tracking_uri", MagicMock()),
+    patch("mlflow.set_experiment", MagicMock()),
+    patch("mlflow.start_run", MagicMock()),
+]
+for _p in _module_patches:
+    _p.start()
 
 from app.main import app
 from app.db.base import Base
@@ -10,6 +21,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.query import Query
 from app.core.security import get_password_hash
+
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 
