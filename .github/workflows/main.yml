@@ -57,6 +57,7 @@ jobs:
             - name: Run Pytest
               run: pytest tests/test_api_rag.py -v --cov=app --cov-report=term-missing
               env :
+                PYTHONPATH: .
                 DATABASE_URL: "sqlite:///./test.db"
                 QDRANT_URL: "http://localhost:6333"
                 QDRANT_COLLECTION: "cliniq_docs"
