@@ -4,7 +4,6 @@ from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 
-
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
@@ -16,18 +15,18 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(
+    subject: Union[str, Any], expires_delta: timedelta = None
+) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    
+
     to_encode = {"exp": expire, "sub": str(subject)}
-    
+
     encoded_jwt = jwt.encode(
-        to_encode, 
-        settings.JWT_SECRET_KEY, 
-        algorithm=settings.JWT_ALGORITHM
+        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
-    
+
     return encoded_jwt

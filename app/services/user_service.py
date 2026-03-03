@@ -14,16 +14,16 @@ def get_user_by_username(db: Session, username: str):
 
 def create_user(db: Session, user_in: UserCreate):
     hashed_password = get_password_hash(user_in.password)
-    
+
     db_user = User(
         email=user_in.email,
         username=user_in.username,
         hashed_password=hashed_password,
-        role=user_in.role
+        role=user_in.role,
     )
-    
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return db_user
