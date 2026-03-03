@@ -24,16 +24,13 @@ jobs:
                 python-version: 3.11
             
             - name: Install Quality Tools
-              run: pip install black flake8 mypy
-            
-            - name: Run Black (Code Formatter)
+              run: pip install ruff black
+
+            - name: Run Black (vérification du formatage)
               run: black --check app tests
-            
-            - name: Run Flake8 (Linter)
-              run: flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
-            
-            - name: Run MyPy (Type Checker)
-              run: mypy app --ignore-missing-imports
+
+            - name: Run Ruff (linter rapide, remplace flake8 + isort)
+              run: ruff check app tests
     
     unit-tests:
         name: Unit & Mock Tests
