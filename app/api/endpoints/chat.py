@@ -10,6 +10,9 @@ from app.api.deps import get_current_user
 from app.services.rag_service import RAGService, get_rag_service
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from typing import List
+from app.schemas.chat import QueryHistory
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,3 +55,16 @@ async def ask_clinical_question(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Une erreur est survenue lors de la génération de la réponse médicale.",
         )
+
+
+
+@router.get("/history", response_model=List[QueryHistory])
+async def get_my_history(
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    history = db.query(Query).filter(
+        Query.user_id == current_user.id
+    ).order_by(Query.created_at.desc()).all()
+    
+    return history
